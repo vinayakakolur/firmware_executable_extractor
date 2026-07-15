@@ -1,49 +1,112 @@
-import random
-import socketserver 
-import socket, os
-import string
+import os
+import json
+import argparse
+import subprocess
+from pathlib import Path
 
-flag = open('flag.txt','r').read().strip()
+def find_elf_files(root_path):
+    elf_files = []
 
-def send_message(server, message):
-    enc = message.encode()
-    server.send(enc)
+    for root, _, files in os.walk(root_path):
+        for file in files:
+            file_path = os.path.join(root, file)
 
-def setup(server, key):
-    flag = 'THM{thisisafakeflag}' 
-    xored = ""
+            try:
+                result = subprocess.run(
+                    ["file", file_path],
+                    capture_output=True,
+                    text=True
+                )
 
-    for i in range(0,len(flag)):
-        xored += chr(ord(flag[i]) ^ ord(key[i%len(key)]))
+                if "ELF" in result.stdout:
+                    elf_files.append(file_path)
 
-    hex_encoded = xored.encode().hex()
-    return hex_encoded
+            except Exception:
+                continue
 
-def start(server):
-    res = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
-    key = str(res)
-    hex_encoded = setup(server, key)
-    send_message(server, "This XOR encoded text has flag 1: " + hex_encoded + "\n")
-    
-    send_message(server,"What is the encryption key? ")
-    key_answer = server.recv(4096).decode().strip()
+    return elf_files
 
-    try:
-        if key_answer == key:
-            send_message(server, "Congrats! That is the correct key! Here is flag 2: " + flag + "\n")
-            server.close()
-        else:
-            send_message(server, 'Close but no cigar' + "\n")
-            server.close()
-    except:
-        send_message(server, "Something went wrong. Please try again. :)\n")
-        server.close()
+    def extract_metadata(file_path):
 
-class RequestHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        start(self.request)
+    result = subprocess.run(
+        ["file", file_path],
+        capture_output=True,
+        text=True
+    )
 
-if __name__ == '__main__':
-    socketserver.ThreadingTCPServer.allow_reuse_address = True
-    server = socketserver.ThreadingTCPServer(('0.0.0.0', 1337), RequestHandler)
-    server.serve_forever()
+    output = result.stdout
+
+    metadata = {
+        "name": Path(file_path).name,
+        "path": file_path,
+        "size": os.path.getsize(file_path),
+        "architecture": None,
+        "bits": None,
+        "endianness": None,
+        "interpreter": None,
+        "stripped": None
+    }
+
+    if "32-bit" in output:
+        metadata["bits"] = 32
+    elif "64-bit" in output:
+        metadata["bits"] = 64
+
+    if "LSB" in output:
+        metadata["endianness"] = "LSB"
+
+    elif "MSB" in output:
+        metadata["endianness"] = "MSB"
+
+    if "MIPS" in output:
+        metadata["architecture"] = "MIPS"
+
+    elif "ARM" in output:
+        metadata["architecture"] = "ARM"
+
+    elif "x86-64" in output:
+        metadata["architecture"] = "x86_64"
+
+    if "interpreter" in output:
+        start = output.find("interpreter")
+        metadata["interpreter"] = output[start:].split(",")[0].replace("interpreter ", "")
+
+    metadata["stripped"] = "not stripped" not in output
+
+    return metadata
+
+    def save_json(data, filename="metadata.json"):
+
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=4)
+
+    print(f"\nMetadata written to {filename}")
+
+    def main():
+
+    parser = argparse.ArgumentParser(
+        description="Firmware Metadata Extractor"
+    )
+
+    parser.add_argument(
+        "rootfs",
+        help="Path to extracted firmware filesystem"
+    )
+
+    args = parser.parse_args()
+
+    print("[+] Searching for ELF binaries...")
+
+    elf_files = find_elf_files(args.rootfs)
+
+    print(f"[+] Found {len(elf_files)} ELF files")
+
+    metadata = []
+
+    for elf in elf_files:
+        metadata.append(extract_metadata(elf))
+
+    save_json(metadata)
+
+    if __name__ == "__main__":
+    main()
