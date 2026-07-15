@@ -1,21 +1,9 @@
-# Firmware Security Lab
+# Firmware Executable Extractor
 
-Research and tools for firmware and embedded system security, including analysis pipeline, automation and reproducible experiments.
+A Python-based utility for extracting executable files from directories for fuzzing and analysis
 
-# Research Areas
+# Use cases
 
-- Firmware reverse engineering
-- Static firmware analysis
-- Firmware metadata extraction
-- AI-assisted execuitable propritizaiton
+Firmware extraction $workflows
 
-# Tech Stack
-
-- Python
-- C
-- Bash
-- Binwalk
-- Ghidra
-- Radare2
-- QEMU
-- Docker
+python3 extractor.py <input_directory> > executable.txt
