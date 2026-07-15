@@ -1,3 +1,5 @@
+# This File finds executables in firmwares
+
 import os
 import json
 import argparse
